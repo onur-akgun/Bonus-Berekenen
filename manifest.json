@@ -1,0 +1,7 @@
+{
+  "name": "dpa_bonus",
+  "short_name": "dpa_bonus",
+  "description": "Een app waarmee de bonus makkelijk bereknt kan worden",
+  "start_url": "/",
+  "display": "standalone"
+}

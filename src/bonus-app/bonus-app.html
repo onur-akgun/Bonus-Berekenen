@@ -1,0 +1,261 @@
+<link rel="import" href="../../bower_components/polymer/polymer-element.html">
+<link rel="import" href="../../bower_components/app-layout/app-layout.html">
+<link rel="import" href="../../bower_components/paper-input/paper-input.html">
+<link rel="import" href="../../bower_components/paper-slider/paper-slider.html">
+<link rel="import" href="../../bower_components/paper-button/paper-button.html">
+<link rel="import" href="../../bower_components/paper-icon-button/paper-icon-button.html">
+<link rel="import" href="../../bower_components/iron-image/iron-image.html">
+<link rel="import" href="../../bower_components/paper-toggle-button/paper-toggle-button.html">
+<link rel="import" href="../../bower_components/paper-card/paper-card.html">
+
+<dom-module id="bonus-app">
+    <template>
+        <style>
+            :host {
+                display: block;
+                font-family: Roboto, Noto, sans-serif;
+            }
+
+            app-toolbar {
+                background-color: var(--paper-grey-600);
+                color: white;
+                margin: 20px 0;
+            }
+
+            paper-slider.red {
+                --paper-slider-knob-color: var(--paper-red-900);
+                --paper-slider-active-color: var(--paper-red-500);
+                --paper-slider-knob-start-border-color: var(--paper-red-900);
+                --paper-slider-knob-start-color: var(--paper-red-900);
+                --paper-slider-height: 2px;
+                width: 100%;
+                --paper-slider-input: {
+                    width: 60px
+                }
+                ;
+            }
+
+            paper-button.reset {
+                background: var(--paper-grey-600);
+                color: white;
+                width: 100%;
+            }
+
+            paper-button.reset:hover {
+                background: var(--paper-blue-900);
+            }
+
+            paper-input.salaris {
+                font-weight: 900;
+            }
+
+            paper-toggle-button.red {
+                --paper-toggle-button-checked-bar-color: var(--paper-red-900);
+                --paper-toggle-button-checked-button-color: var(--paper-red-900);
+            }
+
+            #salary-container {
+                max-width: 700px;
+                width: 90%;
+                margin: 0 auto;
+            }
+
+            #sizing-logo {
+                width: 280px;
+                height: 100px;
+                /* left: 430px; */
+            }
+
+            #messageLeaseCar {
+                font-size: 13px;
+            }
+        </style>
+
+        <div id="salary-container">
+            <iron-image id="sizing-logo" sizing="contain" src="/src/image/geos_logo.png"></iron-image>
+
+            <paper-button disabled class="reset">
+                <iron-icon icon="check"></iron-icon>
+                <b>BEREKEN UW SALARIS BIJ DPA GEOS</b>
+            </paper-button>
+            </br>
+            </br>
+            <div>Verwacht uurtarief bij klant</div>
+            <paper-input value="{{clientHourlyRate}}" always-float-label auto-validate pattern="[0-9]*" error-message="Alleen getallen!"
+                type="string" maxlength="3">
+                <div slot="prefix">€</div>
+            </paper-input>
+            </br>
+            <div>Basissalaris DPA GEOS</div>
+            </br>
+            <paper-slider class="red" value='{{selectedBasicSalary}}' min='1500' max='5000' snaps max-markers="35" step="100" editable>
+            </paper-slider>
+            </br>
+            <div>Aantal uren per week</div>
+            </br>
+            <paper-slider class="red" value='{{selectedHours}}' min='32' max='40' snaps max-markers="8" editable></paper-slider>
+            </br>
+            <div>Aantal vakantiedagen</div>
+            </br>
+            <paper-slider class="red" value='{{selectedHolidayDays}}' min='20' max='35' snaps max-markers="15" editable></paper-slider>
+            </br>
+            <div>Bonus</div>
+            <paper-input readonly value="[[bonus]]">
+                <div slot="prefix">€</div>
+            </paper-input>
+            </br>
+            </br>
+            <div>Lease auto</div>
+            </br>
+            <paper-toggle-button checked='{{countLeaseCar}}' class="red">
+                <p id="messageLeaseCar">([[messageLeaseCar]])</p>
+            </paper-toggle-button>
+            </br>
+            <div>Totaal bruto salaris</div>
+            <paper-input class="salaris" readonly value="[[grossSalary]]">
+                <div slot="prefix">€</div>
+            </paper-input>
+            </br>
+            <paper-button class="reset" on-click="_reset" role="button">
+                <iron-icon icon="check"></iron-icon>
+                <b>NIEUWE BEREKENING</b>
+            </paper-button>
+            </br>
+        </div>
+
+    </template>
+
+    <script>
+        /**
+         * @customElement
+         * @polymer
+         */
+        class bonusApp extends Polymer.Element {
+
+            static get is() {
+                return 'bonus-app';
+            }
+
+            static get properties() {
+                return {
+                    clientHourlyRate: {
+                        type: String
+                    },
+                    selectedBasicSalary: {
+                        type: Number,
+                        value: 2500,
+                        observer: '_getInternalRate'
+                    },
+                    selectedHours: {
+                        type: Number,
+                        value: 36
+                    },
+                    selectedHolidayDays: {
+                        type: Number,
+                        value: 25
+                    },
+                    InternalRate: {
+                        type: Number,
+                        computed: '_getInternalRate(selectedBasicSalary, selectedHolidayDays, selectedHours)'
+                    },
+                    bonus: {
+                        type: Number,
+                        computed: '_getbonus(clientHourlyRate, InternalRate, selectedHours)'
+                    },
+                    grossSalary: {
+                        type: Number,
+                        computed: '_getGrossSalary(bonus, selectedBasicSalary, countLeaseCar)'
+                    },
+                    countLeaseCar: {
+                        type: Boolean,
+                        observer: '_getGrossSalary'
+                    },
+                    messageLeaseCar: {
+                        type: String,
+                        computed: '_showMessageLeaseCar(countLeaseCar)'
+                    }
+                }
+            }
+
+            _getInternalRate(selectedBasicSalary, selectedHolidayDays, selectedHours) {
+                let res_InternalRate;
+                let extra_holiday_day;
+                let extra_free_hour;
+                let res_InternalRate_extra;
+                let less_holiday_day;
+
+                let basisSalaris = [1500, 1600, 1700, 1800, 1900, 2000, 2100, 2200, 2300, 2400, 2500, 2600, 2700, 2800,
+                    2900, 3000, 3100, 3200, 3300, 3400, 3500, 3600, 3700, 3800, 3900, 4000, 4100, 4200, 4300, 4400, 4500, 4600, 4700,
+                    4800, 4900, 5000];
+
+                let rate = [29, 32, 35, 38, 41, 44, 45.5, 47, 48.5, 50, 51, 52.5, 54, 55.5, 57, 58, 59, 60.5, 62, 63.5, 65
+                    , 66, 67.5, 69, 70.5, 72, 73, 74.5, 76, 77.5, 69, 80.5, 82, 88, 89.5, 91];
+
+                for (let i = 0; i < basisSalaris.length; i++) {
+                    if (selectedBasicSalary === basisSalaris[i]) {
+                        res_InternalRate = rate[i];
+                    }
+                }
+
+                if (selectedHolidayDays == 25 && selectedHours == 40) {
+                    return res_InternalRate;
+                } else {
+                    if (selectedHolidayDays < 25 && selectedHolidayDays >= 20) {
+                        less_holiday_day = (25 - selectedHolidayDays) * -0.4;
+                        res_InternalRate = res_InternalRate + less_holiday_day;
+                    }
+                    else if (selectedHolidayDays > 25 && selectedHolidayDays <= 35) {
+                        extra_holiday_day = (selectedHolidayDays - 25) * 0.4;
+                        res_InternalRate = res_InternalRate + extra_holiday_day;
+                    }
+                    extra_free_hour = (40 - selectedHours) * 0.4;
+                    res_InternalRate_extra = res_InternalRate + extra_free_hour;
+                    return res_InternalRate_extra;
+                }
+            }
+
+            _getbonus(clientHourlyRate, InternalRate, selectedHours) {
+                let monthlyHours;
+                if (selectedHours == 33) {
+                    monthlyHours = 138;
+                } else if (selectedHours == 35) {
+                    monthlyHours = 146;
+                } else {
+                    monthlyHours = Math.round(selectedHours * 4.2);
+                }
+                const res_bonus = ((clientHourlyRate - InternalRate) * 0.7) * monthlyHours;
+                if (res_bonus >= 0) {
+                    return Math.round(res_bonus);
+                } else {
+                    return 0;
+                }
+            }
+
+            _getGrossSalary(bonus, selectedBasicSalary, countLeaseCar) {
+                let res_bruto = bonus + selectedBasicSalary;
+                if (!countLeaseCar) {
+                    res_bruto = res_bruto + 845;
+                }
+                if (res_bruto >= 0) {
+                    return Math.round(res_bruto);
+                } else {
+                    return 0;
+                }
+            }
+
+            _showMessageLeaseCar(countLeaseCar) {
+                if (!countLeaseCar) {
+                    return "Ik wil geen leaseauto, maar de vergoeding";
+                } else {
+                    return "Ik wil een leaseauto, budget E 845";
+                }
+            }
+
+            _reset() {
+                window.location.reload();
+            }
+        }
+
+        window.customElements.define(bonusApp.is, bonusApp);
+    </script>
+</dom-module>
